@@ -22,7 +22,7 @@ struct Customer
         int id;
     char password[13];  // 12 chars + '\0'
     char name[20];
-    char branch[20];
+    char branch[4];
     int active;
 };
 struct Transaction{

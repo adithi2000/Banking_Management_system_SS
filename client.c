@@ -24,7 +24,7 @@ int main() {
     int sd;
     // Configure server address
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(8083);
+    serv.sin_port = htons(8086);
     serv.sin_addr.s_addr = inet_addr("127.0.0.1");  // Replace with actual IP if needed
 
     

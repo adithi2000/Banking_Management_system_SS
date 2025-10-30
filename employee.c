@@ -178,21 +178,41 @@ void viewLoanAppln(int sd, int empid){
         if(fd ==-1){
                 perror("Loan DB Unopenanable \n");
         }
-        char buff[1024];
         struct Loan loan;
+        int records_found=0;
+          struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Loan);
+        size_t total_records = file_size / record_size;
+        struct Loan *loan_array = malloc(total_records* sizeof(struct Loan));
+            int bytes_read_file;
+            lseek(fd,0,SEEK_SET);
         while(read(fd,&loan,sizeof(loan))==sizeof(loan)){
                 if(loan.empid==empid && loan.status==0){
-                snprintf(buff,sizeof(buff),"Acc_no: %d | empid : %d | loanid : %d | amt : %lf",loan.acc_no,loan.empid,loan.loan_id,loan.amt);
-                write(sd,buff,strlen(buff)+1);
+              loan_array[records_found]= loan;
+              records_found++;
                }
     }
-        if(write(sd,"END\n",5)>0){
-      //  printf("end of customer details sent \n");
-      return;
+    if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
+        // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
+    if(write(sd,loan_array,records_found * sizeof(struct Transaction))>0){
+        printf("Customer details sent successfully\n");
+    }
+    else{
+        perror("Error sending customer details");
+    }
+    free(loan_array);
+         
     close(fd);
 }
 
@@ -389,31 +409,61 @@ void EmployeesDetails(int sd){
                 perror("EMP DB Unopenanable \n");
                 return;
         }
-        char buff[1024];
+      // getting total size of file
+        struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Employee);
+        size_t total_records = file_size / record_size;
+
         struct Employee emp;
-       
+        struct Emp{
+            int empid;
+            int managerid;
+            char name[20];
+            char branch[20];
+        };
+       struct Emp *emp_array = malloc(total_records* sizeof(struct Emp));
         int bytes_read_file;
         lseek(fd,0,SEEK_SET);
         while ((bytes_read_file = read(fd, &emp, sizeof(emp))) > 0) {
            // printf("Debug: Read Employee Record: empid=%d, managerid=%d, name=%s, branch=%s\n", emp.empid, emp.managerid, emp.name, emp.branch);
                 if(emp.empid==0){
-                    records_found++;
                     continue;
                 }
-                snprintf(buff,sizeof(buff),"empid: %d |managerid : %d | name : %s | branch : %3s",emp.empid,emp.managerid,emp.name,emp.branch);
+                
+               struct Emp emp_temp;
+                emp_temp.empid = emp.empid;
+                emp_temp.managerid = emp.managerid;
+                strncpy(emp_temp.name, emp.name, sizeof(emp_temp.name) - 1);
+                emp_temp.name[sizeof(emp_temp.name) - 1] = '\0';
+                strncpy(emp_temp.branch, emp.branch, sizeof(emp_temp.branch) - 1);
+                emp_temp.branch[sizeof(emp_temp.branch) - 1] = '\0';
+                emp_array[records_found] = emp_temp;
                 records_found++;
-                if(write(sd,buff,strlen(buff)+1)<=0){
-                    perror("Write Error");
-                }
+               
     }
-    printf("Records found %d \n",records_found);
-       if(write(sd,"END\n",strlen("END\n"))>0){
-       printf("end of employee details sent \n");
-       //return;
+
+   struct Emp *final_array = realloc(emp_array, records_found * sizeof(struct Emp));
+    //uint32_t record_count_n = htonl((uint32_t)records_found);
+     if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
+        // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
+    if(write(sd,final_array,records_found * sizeof(struct Emp))>0){
+        printf("Employee details sent successfully\n");
+    }
+    else{
+        perror("Error sending employee details");
+    }
+    free(final_array);
     close(fd);
 }
 

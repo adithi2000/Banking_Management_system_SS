@@ -4,11 +4,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "common.h"
 #include <sys/select.h>
 #include <sys/time.h>
+#include <arpa/inet.h>
 
 #define BUFFER_SIZE 1024
 
@@ -267,119 +269,75 @@ void admin_client(int sd){
                     break;
                  case 13: {
                 // View Customers
-                
-                fd_set read_fds;
-                struct timeval timeout;
-                int retval;
-                while(1){
-                    FD_ZERO(&read_fds);
-                    FD_SET(sd, &read_fds);
-                    timeout.tv_sec = 10;  // 10 seconds timeout
-                    timeout.tv_usec = 0;
-                    retval = select(sd + 1, &read_fds, NULL, NULL, &timeout);
-                    if (retval == -1) {
-                        perror("select()");
-                        break;
-                    } else if (retval == 0) {
-                        printf("All Records Done.\n");
-                        break;
-                    }
-
-                    memset(BUFF,0,sizeof(BUFF));
-                    int bytes_read = read(sd, BUFF, sizeof(BUFF) - 1);
-                    if (bytes_read <= 0) {
-                        if (bytes_read == 0) printf("Server disconnected.\n");
-                        else perror("read error");
-                        break; // Exit the reading loop
-                    }
-                    BUFF[bytes_read] = '\0';
-                    BUFF[strcspn(BUFF, "\r\n")] = '\0';
-                    trim_whitespace(BUFF);
-                    if(strcmp(BUFF, "END") == 0){
-                        break;
-                    }
-                    printf("%s\n", BUFF);
-                    fflush(stdout);
+                struct Cust{
+                int acc_no;
+                int id;
+                char name[20];
+                char branch[20];
+                int active;
+                };
+                //uint32_t records_found=0;
+                int records_found=0;
+                read(sd,&records_found,sizeof(records_found));
+                //int records_found_host = ntohl(records_found);
+                printf("Total Customer Records: %d\n", records_found);
+                size_t total_array_size = records_found * sizeof(struct Cust);
+                struct Cust *cust_array = malloc(total_array_size);
+                read(sd,cust_array,records_found * sizeof(struct Cust));
+                for(int i=0;i<records_found;i++){
+                    cust_array[i].name[sizeof(cust_array[i].name) - 1] = '\0';
+                    cust_array[i].branch[sizeof(cust_array[i].branch) - 1] = '\0';
+                    printf("id: %d |Account no : %d| Name: %s | Branch: %3s | Active : %d \n",cust_array[i].id,cust_array[i].acc_no,cust_array[i].name,cust_array[i].branch,cust_array[i].active);
                 }
+                free(cust_array);
+                fflush(stdout);
+                
                 break;
             }
              case 14: {
                 // View Employees
-                
-                fflush(stdout);
-                fd_set read_fds;
-                struct timeval timeout;
-                int retval;
-                while(1){
-                    FD_ZERO(&read_fds);
-                    FD_SET(sd, &read_fds);
-                    timeout.tv_sec = 10;  // 10 seconds timeout
-                    timeout.tv_usec = 0;
-                    retval = select(sd + 1, &read_fds, NULL, NULL, &timeout);
-                    if (retval == -1) {
-                        perror("select()");
-                        break;
-                    } else if (retval == 0) {
-                        printf("All Records Done.\n");
-                        break;
-                    }
-
-                    memset(BUFF,0,sizeof(BUFF));
-                    int bytes_read = read(sd, BUFF, sizeof(BUFF) - 1);
-                    if (bytes_read <= 0) {
-                        if (bytes_read == 0) printf("Server disconnected.\n");
-                        else perror("read error");
-                        break; // Exit the reading loop
-                    }
-                    BUFF[bytes_read] = '\0';
-                    BUFF[strcspn(BUFF, "\r\n")] = '\0';
-                    trim_whitespace(BUFF);
-                    if(strcmp(BUFF, "END") == 0){
-                        break;
-                    }
-                    printf("%s\n", BUFF);
-                    fflush(stdout);
+                 struct Emp{
+            int empid;
+            int managerid;
+            char name[20];
+            char branch[20];
+        };
+                //uint32_t records_found=0;
+                int records_found=0;
+                read(sd,&records_found,sizeof(records_found));
+                //int records_found_host = ntohl(records_found);
+                printf("Total Employee Records: %d\n", records_found);
+                size_t total_array_size = records_found * sizeof(struct Emp);
+                struct Emp *emp_array = malloc(total_array_size);
+                read(sd,emp_array,records_found * sizeof(struct Emp));
+                for(int i=0;i<records_found;i++){
+                    emp_array[i].name[sizeof(emp_array[i].name) - 1] = '\0';
+                    emp_array[i].branch[sizeof(emp_array[i].branch) - 1] = '\0';
+                    printf("empid: %d |managerid: %d| Name: %s | Branch: %3s \n",emp_array[i].empid,emp_array[i].managerid,emp_array[i].name,emp_array[i].branch);
                 }
+                free(emp_array);
                 fflush(stdout);
                 break;
             }
              case 15: 
                 // View Manager
                 {
-                fflush(stdout);
-                fd_set read_fds;
-                struct timeval timeout;
-                int retval;
-                while(1){
-                    FD_ZERO(&read_fds);
-                    FD_SET(sd, &read_fds);
-                    timeout.tv_sec = 10;  // 10 seconds timeout
-                    timeout.tv_usec = 0;
-                    retval = select(sd + 1, &read_fds, NULL, NULL, &timeout);
-                    if (retval == -1) {
-                        perror("select()");
-                        break;
-                    } else if (retval == 0) {
-                        printf("All Records Done.\n");
-                        break;
-                    }
-
-                    memset(BUFF,0,sizeof(BUFF));
-                    int bytes_read = read(sd, BUFF, sizeof(BUFF) - 1);
-                    if (bytes_read <= 0) {
-                        if (bytes_read == 0) printf("Server disconnected.\n");
-                        else perror("read error");
-                        break; // Exit the reading loop
-                    }
-                    BUFF[bytes_read] = '\0';
-                    BUFF[strcspn(BUFF, "\r\n")] = '\0';
-                    trim_whitespace(BUFF);
-                    if(strcmp(BUFF, "END") == 0){
-                        break;
-                    }
-                    printf("%s\n", BUFF);
-                    fflush(stdout);
+                 struct Mang{
+                int empid;
+                int managerid;
+                };
+               int records_found=0;
+                read(sd,&records_found,sizeof(records_found));
+                //int records_found_host = ntohl(records_found);
+                printf("Total Manager Records: %d\n", records_found);
+                size_t total_array_size = records_found * sizeof(struct Mang);
+                struct Mang *mang_array = malloc(total_array_size);
+                read(sd,mang_array,records_found * sizeof(struct Mang));
+                for(int i=0;i<records_found;i++){
+                    printf("empid: %d |managerid: %d\n",mang_array[i].empid,mang_array[i].managerid);
                 }
+                free(mang_array);
+                fflush(stdout);
                 break;
             }
     

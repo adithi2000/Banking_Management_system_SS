@@ -8,19 +8,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include<stddef.h>
-
-#include "bank_struct.h"
-#include "common.h"
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <arpa/inet.h>
 
 void create_Customer(int sd, int id, char *pass, char *name, char *branch) {
     // Create User Record
@@ -325,8 +315,10 @@ int fund_to_beneficiary(int s_acc, int r_acc, double money) {
 
 // View Passbook
 void viewPassbook(int sd,int acc_no){
+    int records_found=0;
         char buff[1024];
          struct Transaction trans_;
+         struct Transaction *trans_array;
            char *trans=transactionFile(acc_no);
            //printf("Transaction file name : %s\n",trans);
  	        int fd = open(trans,O_RDONLY);
@@ -334,25 +326,38 @@ void viewPassbook(int sd,int acc_no){
                 perror("Transaction file unopenanable \n");
                 return;
             }
-            if(fsync(fd)==-1){
-                perror("fsync failed \n");
-                return;
-            }
+          struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Transaction);
+        size_t total_records = file_size / record_size;
             int bytes_read_file;
-            fsync(fd);
         lseek(fd,0,SEEK_SET);
         while ((bytes_read_file = read(fd, &trans_, sizeof(trans_))) > 0) {
-            sprintf(buff,"Transaction Time : %s | %s : Rs. %lf \n",trans_.timestamp,trans_.operation,trans_.amt);
+            //sprintf(buff,"Transaction Time : %s | %s : Rs. %lf \n",trans_.timestamp,trans_.operation,trans_.amt);
            // printf("Sending transaction detail: %s\n", buff);
-            fflush(stdout);
-            write(sd,buff,strlen(buff) + 1);
+           trans_array[records_found]= trans_;
+           records_found++;
          }
-          if(write(sd,"END\n",strlen("END\n")+1)>0){
-        printf("end of customer details sent \n");
+         if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
+        // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
+    if(write(sd,trans_array,records_found * sizeof(struct Transaction))>0){
+        printf("Customer details sent successfully\n");
+    }
+    else{
+        perror("Error sending customer details");
+    }
+    free(trans_array);
+         
     close(fd);
          }
          
@@ -375,38 +380,66 @@ void apply_Loan(int acc_no,double money){
 //View User Details
 void CustomerDetails(int sd){
     int records_found=0;
-        int fd = open(USER_RECORDS,O_RDONLY,0744);
+        int fd = open(USER_RECORDS,O_RDONLY);
         if(fd ==-1){
                 perror("Customer DB Unopenanable \n");
                 return;
         }
-       
+        struct Cust{
+            int acc_no;
+            int id;
+            char name[20];
+            char branch[20];
+            int active;
+        };
+        // getting total size of file
+        struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Customer);
+        size_t total_records = file_size / record_size;
+        
+        struct Cust *cust_array = malloc(total_records * sizeof(struct Cust));
         char buff[1024];
         struct Customer u;
         int bytes_read_file;
         lseek(fd,0,SEEK_SET);
         while ((bytes_read_file = read(fd, &u, sizeof(u))) > 0) {
                  if(u.id==0){
-                    records_found++;
                     continue;
                  }
-                snprintf(buff,sizeof(buff),"id: %d |Account no : %d| Name: %s | Branch: %3s | Active : %d \n",u.id,u.acc_no,u.name,u.branch,u.active);
-               // printf("Sending customer detail: %s\n", buff);
-                 records_found++;
-                int bytes_wrote=write(sd,buff,strlen(buff)+1);
-                if(bytes_wrote <0){
-                    perror("Error writing to socket \n");
-                    return;
-                }
+               
+                struct Cust cust_temp;
+                cust_temp.acc_no = u.acc_no;
+                cust_temp.id = u.id;
+                strncpy(cust_temp.name, u.name, sizeof(cust_temp.name) - 1);
+                cust_temp.name[sizeof(cust_temp.name) - 1] = '\0';
+                strncpy(cust_temp.branch, u.branch, sizeof(cust_temp.branch) - 1);
+                cust_temp.branch[sizeof(cust_temp.branch) - 1] = '\0';
+                cust_temp.active = u.active;
+                cust_array[records_found] = cust_temp;
+                records_found++;
     }   
-    printf("Records found %d \n",records_found);
-        if(write(sd,"END\n",5)>0){
-        printf("end of customer details sent \n");
+    struct Cust *final_array = realloc(cust_array, records_found * sizeof(struct Cust));
+    //uint32_t record_count_n = htonl((uint32_t)records_found);
+     if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
         // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
+    if(write(sd,final_array,records_found * sizeof(struct Cust))>0){
+        printf("Customer details sent successfully\n");
+    }
+    else{
+        perror("Error sending customer details");
+    }
+    free(final_array);
     close(fd);
 }
 int logout_Customer(int acc_no) {
@@ -419,8 +452,7 @@ int logout_Customer(int acc_no) {
 
     struct Session s;
     int record_found_and_updated = 0; // More descriptive flag
-
-    // --- Loop through the session file ---
+    lseek(session_fd, 0, SEEK_SET);
     while (read(session_fd, &s, sizeof(s)) == sizeof(s)) {
         //printf("DEBUG logout: Read session record: id=%d, status=%d\n", s.id, s.status);
         if (s.id == acc_no && s.status == 1) {

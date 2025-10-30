@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
 
     serv.sin_family = AF_INET;
     serv.sin_addr.s_addr = INADDR_ANY;
-    serv.sin_port = htons(8083); // Port from previous examples
+    serv.sin_port = htons(8086); // Port from previous examples
 
     if (bind(old_sd, (void *)(&serv), sizeof(serv)) < 0) {
         perror("bind");

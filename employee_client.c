@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "common.h"
+#include "bank_struct.h"
 #include <sys/select.h>
 #include <sys/time.h>
 
@@ -82,38 +83,17 @@ void employee_client(int sd){
 
             case 4: {
                 // View Loan Applications
-                fd_set read_fds;
-                struct timeval timeout;
-                int retval;
-                 while(1){
-                    FD_ZERO(&read_fds);
-                    FD_SET(sd, &read_fds);
-                    timeout.tv_sec = 10;  // 10 seconds timeout
-                    timeout.tv_usec = 0;
-                    retval = select(sd + 1, &read_fds, NULL, NULL, &timeout);
-                    if (retval == -1) {
-                        perror("select()");
-                        break;
-                    } else if (retval == 0) {
-                        printf("All Records Done.\n");
-                        break;
-                    }
-                    memset(BUFF, 0, sizeof(BUFF));
-                    int bytes_read = read(sd, BUFF, sizeof(BUFF) - 1);
-                    if (bytes_read <= 0) {
-                    if (bytes_read == 0) printf("Server disconnected.\n");
-                    else perror("read error");
-                    break; // Exit the inner reading loop
+                 int records_found=0;
+                read(sd,&records_found,sizeof(records_found));
+                printf("Total Loan Records: %d\n", records_found);
+                size_t total_array_size = records_found * sizeof(struct Loan);
+                struct Loan *trans_array = malloc(total_array_size);
+                read(sd,trans_array,records_found * sizeof(struct Loan));
+                for(int i=0;i<records_found;i++){
+                //     
+                printf("Loan ID : %d | Account No : %d | Amount : Rs. %lf | Assigned Employee ID : %d | Status : %d \n",trans_array[i].loan_id,trans_array[i].acc_no,trans_array[i].amt,trans_array[i].empid,trans_array[i].status);
                 }
-                    BUFF[bytes_read] = '\0';
-                    trim_whitespace(BUFF);
-                    BUFF[strcspn(BUFF, "\r\n")] = '\0';
-                    if(strcmp(BUFF, "END") == 0){
-                        break;
-                    }
-                    printf("%s\n", BUFF);
-                    fflush(stdout);
-                }
+                free(trans_array);
                 break;
             }
 
@@ -150,41 +130,17 @@ void employee_client(int sd){
                 scanf("%d", &acc_no);
                 snprintf(BUFF, sizeof(BUFF), "%d", acc_no);
                 write(sd, BUFF, strlen(BUFF) + 1);
-                fd_set read_fds;
-                struct timeval timeout;
-                int retval;
-                 while(1){
-                    
-                    FD_ZERO(&read_fds);
-                    FD_SET(sd, &read_fds);
-                    timeout.tv_sec = 10;  // 10 seconds timeout
-                    timeout.tv_usec = 0;
-                    retval = select(sd + 1, &read_fds, NULL, NULL, &timeout);
-                    if (retval == -1) {
-                        perror("select()");
-                        break;
-                    } else if (retval == 0) {
-                        printf("All Records Done.\n");
-                        break;
-                    }
-                        memset(BUFF, 0, sizeof(BUFF));
-                    int bytes_read = read(sd, BUFF, sizeof(BUFF) - 1);
-                   // printf("Bytes read: %d\n", bytes_read); // Debugging line
-                    if (bytes_read <= 0) {
-                    if (bytes_read == 0) printf("Server disconnected.\n");
-                    else perror("read error");
-                    break; // Exit the inner reading loop
+                 int records_found=0;
+                read(sd,&records_found,sizeof(records_found));
+                printf("Total Customer Records: %d\n", records_found);
+                size_t total_array_size = records_found * sizeof(struct Transaction);
+                struct Transaction *trans_array = malloc(total_array_size);
+                read(sd,trans_array,records_found * sizeof(struct Transaction));
+                for(int i=0;i<records_found;i++){
+                //     
+                printf("Transaction Time : %s | %s : Rs. %lf \n",trans_array[i].timestamp,trans_array[i].operation,trans_array[i].amt);
                 }
-                     BUFF[bytes_read] = '\0';
-                    BUFF[strcspn(BUFF, "\r\n")] = '\0';
-                    trim_whitespace(BUFF);
-                    if(strcmp(BUFF, "END") == 0){
-                        break;
-                    }
-                    printf("%s\n", BUFF);
-                    fflush(stdout);
-                }
-                fflush(stdout);
+                free(trans_array);
                 break;
               
             }

@@ -92,47 +92,86 @@ void viewLoanApplications(int sd){
                 perror("Loan DB Unopenanable \n");
                 return;
         }
-        char buff[2025];
         struct Loan loan;
-        lseek(fd,0,SEEK_SET);
-        while(read(fd,&loan,sizeof(loan))==sizeof(loan)){
-                if(loan.status==0 && loan.empid==0){
-                snprintf(buff,sizeof(buff),"Acc_no: %d | empid : %d | loanid : %d | amt : %lf",loan.acc_no,loan.empid,loan.loan_id,loan.amt);
-                write(sd,buff,strlen(buff)+1);
-                }
+        int records_found=0;
+          struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
         }
-        if(write(sd,"END\n",5)>0){
-        printf("end of feedback sent \n");
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Loan);
+        size_t total_records = file_size / record_size;
+        struct Loan *loan_array = malloc(total_records* sizeof(struct Loan));
+            int bytes_read_file;
+            lseek(fd,0,SEEK_SET);
+            while ((bytes_read_file = read(fd, &loan, sizeof(loan))) > 0) {
+           loan_array[records_found]= loan;
+           records_found++;
+         }
+         if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
         // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
-         close(fd);
+    if(write(sd,loan_array,records_found * sizeof(struct Transaction))>0){
+        printf("Customer details sent successfully\n");
+    }
+    else{
+        perror("Error sending customer details");
+    }
+    free(loan_array);
+         
+    close(fd);
 }
 void viewFeedback(int sd){
-        int fd = open(FEEDBACK,O_RDONLY);
+     int records_found=0;
+     int fd = open(FEEDBACK,O_RDONLY);
         if(fd ==-1){
                 perror("Loan DB Unopenanable \n");
                 return;
         }
-        char buff[2025];
         struct feedback feed;
-        lseek(fd,0,SEEK_SET);
-        while(read(fd,&feed,sizeof(feed))>0){
-                snprintf(buff,sizeof(buff),"Acc_no: %d | feedback : %s",feed.acc_no,feed.feedback);
-                write(sd,buff,strlen(buff)+1);
-                
-        }
+       
 
-        if(write(sd,"END\n",5)>0){
-        printf("end of feedback sent \n");
+          struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Transaction);
+        size_t total_records = file_size / record_size;
+        struct feedback *feed_array = malloc(total_records* sizeof(struct feedback));
+            int bytes_read_file;
+            lseek(fd,0,SEEK_SET);
+            while ((bytes_read_file = read(fd, &feed, sizeof(feed))) > 0) {
+            //sprintf(buff,"Transaction Time : %s | %s : Rs. %lf \n",trans_.timestamp,trans_.operation,trans_.amt);
+           // printf("Sending transaction detail: %s\n", buff);
+           feed_array[records_found]= feed;
+           records_found++;
+         }
+         if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of customer found %d \n",records_found);
         // return;
         }
         else{
-            perror("Error sending END signal");
+            perror("Error sending record numbers signal");
         }
-        close(fd);
+    if(write(sd,feed_array,records_found * sizeof(struct Transaction))>0){
+        printf("Customer details sent successfully\n");
+    }
+    else{
+        perror("Error sending customer details");
+    }
+    free(feed_array);
+         
+    close(fd);
+       
 }
 void AssignLoans(int sd,int loan_id,int empid){
         int fd = open(LOAN_DB,O_RDWR|O_APPEND,0744);
@@ -162,30 +201,49 @@ void ManagerDetails(int sd){
                 perror("MANGER DB Unopenanable \n");
                 return;
         }
+        struct stat file_stat;
+        if (fstat(fd, &file_stat) == -1) {
+            perror("fstat failed");
+            close(fd);
+            return;
+        }
+        off_t file_size = file_stat.st_size;
+        size_t record_size = sizeof(struct Employee);
+        size_t total_records = file_size / record_size;
+
        
-        char buff[1024];
+        struct Mang{
+            int empid;
+            int managerid;
+        };
+        struct Mang *mang_array = malloc(total_records* sizeof(struct Mang));
         struct Manager mang;
         int bytes_read_file;
         lseek(fd,0,SEEK_SET);
         while ((bytes_read_file = read(fd, &mang, sizeof(mang))) > 0) {
             if(mang.empid==0){
-                records_found++;
                 continue;
             }
-                snprintf(buff,sizeof(buff),"empid: %d |managerid : %d \n",mang.empid,mang.managerid);
-                records_found++;
-                if(write(sd,buff,strlen(buff)+1) <=0){
-                    perror("Write issue to client");
-                }
+                struct Mang mang_temp;
+                 mang_temp.empid = mang.empid;
+                 mang_temp.managerid = mang.managerid;
+                mang_array[records_found] = mang_temp;
+                 records_found++;
                 
     }
-    printf("Records found %d \n",records_found);
-    if(write(sd,"END\n",5)>0){
-       printf("end of manager details sent \n");
-    //    return;
+    struct Mang *final_array = realloc(mang_array, records_found * sizeof(struct Mang));
+     if(write(sd,&records_found,sizeof(records_found))>0){
+        printf("records of manager found %d \n",records_found);
+        // return;
         }
         else{
-            perror("Error sending END signal");
+        perror("Error sending record numbers signal");
+        }
+        if(write(sd,final_array,records_found * sizeof(struct Mang))>0){
+        printf("manager details sent successfully\n");
+        }
+        else{
+            perror("Error sending manager details");
         }
     close(fd);
 }
