@@ -35,12 +35,12 @@ Use a C compiler (like GCC) to build the executables. Ensure all necessary heade
 
 1.  **Server Application:**
     ```bash
-    gcc common.c server.c Admin.c employee.c manager.c customer.c -o serverapp
+    cc common.c server.c Admin.c employee.c manager.c customer.c -o serverapp
     ```
 
 2.  **Client Application:**
     ```bash
-    gcc common.c admin_client.c employee_client.c manager_client.c customer_client.c client.c -o clientapp
+    cc common.c admin_client.c employee_client.c manager_client.c customer_client.c client.c -o clientapp
     ```
 
 ---
@@ -51,9 +51,9 @@ Use a C compiler (like GCC) to build the executables. Ensure all necessary heade
     ```bash
     ./serverapp
     ```
-    *(Optionally, use `./serverapp create` for initial admin setup if implemented).*
 2.  Start one or more client applications:
     ```bash
     ./clientapp
     ```
+
 3.  Follow the prompts within the client application to connect and interact with the banking system.
